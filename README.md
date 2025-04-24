@@ -18,3 +18,5 @@ O shapefile completo é automaticamente baixado do Google Drive ao rodar o aplic
 🔄 **Download automático:** já incluído no código do app via `requests` + `zipfile`
 
 Você **não precisa se preocupar** com o download manual — o app faz isso por você na primeira execução. 😉
+
+[🔗 Link direto para o shapefile no Google Drive](https://drive.google.com/uc?export=download&id=14TwF5uPra8XssUfwwKGiSPdJY4vkTHGT)
