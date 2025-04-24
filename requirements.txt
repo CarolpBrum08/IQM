@@ -1,8 +1,8 @@
 streamlit
 pandas
-plotly
 openpyxl
 geopandas
+plotly
 geobr
 fiona
 pyproj
