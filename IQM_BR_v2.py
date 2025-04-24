@@ -4,10 +4,11 @@ import pandas as pd
 import geopandas as gpd
 import plotly.express as px
 import json
+import requests
 import zipfile
 import io
 import os
-import requests
+
 
 
 # PRIMEIRO comando Streamlit
@@ -21,27 +22,38 @@ def load_data():
 
 @st.cache_data
 def load_geo():
-    # Link direto para download no Google Drive
-    url = "https://drive.google.com/uc?export=download&id=14TwF5uPra8XssUfwwKGiSPdJY4vkTHGT"
+    file_id = "14TwF5uPra8XssUfwwKGiSPdJY4vkTHGT"
+    url = f"https://drive.google.com/uc?export=download&id={file_id}"
 
-    st.write("🔄 Baixando shapefile das microrregiões. Aguarde...")
+    def download_file_from_google_drive(url):
+        session = requests.Session()
+        response = session.get(url, stream=True)
+        token = get_confirm_token(response)
 
-    # Faz o download
-    r = requests.get(url)
-    z = zipfile.ZipFile(io.BytesIO(r.content))
+        if token:
+            url = f"https://drive.google.com/uc?export=download&confirm={token}&id={file_id}"
+            response = session.get(url, stream=True)
 
-    # Extrai para uma pasta temporária
-    extract_path = "shapefile_temp"
-    z.extractall(extract_path)
+        return response.content
 
-    # Encontra o arquivo .shp
-    shp_file = [f for f in os.listdir(extract_path) if f.endswith(".shp")][0]
-    full_path = os.path.join(extract_path, shp_file)
+    def get_confirm_token(response):
+        for key, value in response.cookies.items():
+            if key.startswith("download_warning"):
+                return value
+        return None
 
-    # Carrega o GeoDataFrame
-    gdf = gpd.read_file(full_path).to_crs(epsg=4326)
+    st.write("🔄 Baixando shapefile zipado do Google Drive...")
+    content = download_file_from_google_drive(url)
+    z = zipfile.ZipFile(io.BytesIO(content))
+    z.extractall("shapefile_temp")
+
+    # Encontra o .shp dentro da pasta
+    shp_path = [os.path.join("shapefile_temp", f) for f in os.listdir("shapefile_temp") if f.endswith(".shp")][0]
+    
+    gdf = gpd.read_file(shp_path).to_crs(epsg=4326)
     gdf = gdf[['CD_MICRO', 'geometry']]
     return gdf
+    
 df = load_data()
 gdf = load_geo()
 
