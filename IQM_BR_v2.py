@@ -22,38 +22,19 @@ def load_data():
 
 @st.cache_data
 def load_geo():
-    file_id = "14TwF5uPra8XssUfwwKGiSPdJY4vkTHGT"
-    url = f"https://drive.google.com/uc?export=download&id={file_id}"
-
-    def download_file_from_google_drive(url):
-        session = requests.Session()
-        response = session.get(url, stream=True)
-        token = get_confirm_token(response)
-
-        if token:
-            url = f"https://drive.google.com/uc?export=download&confirm={token}&id={file_id}"
-            response = session.get(url, stream=True)
-
-        return response.content
-
-    def get_confirm_token(response):
-        for key, value in response.cookies.items():
-            if key.startswith("download_warning"):
-                return value
-        return None
-
-    st.write("🔄 Baixando shapefile zipado do Google Drive...")
-    content = download_file_from_google_drive(url)
-    z = zipfile.ZipFile(io.BytesIO(content))
-    z.extractall("shapefile_temp")
-
-    # Encontra o .shp dentro da pasta
-    shp_path = [os.path.join("shapefile_temp", f) for f in os.listdir("shapefile_temp") if f.endswith(".shp")][0]
+    st.info("🔄 Baixando shapefile zipado do Dropbox...")
     
-    gdf = gpd.read_file(shp_path).to_crs(epsg=4326)
+    # 🔗 Coloque aqui o link direto (com ?dl=1)
+    url = "https://www.dropbox.com/scl/fi/9ykpfmts35d0ct0ufh7c6/BR_Microrregioes_2022.zip?rlkey=kjbpqi3f6aeun4ctscae02k9e&st=mer376fu&dl=1"
+    
+    r = requests.get(url)
+    z = zipfile.ZipFile(io.BytesIO(r.content))
+    z.extractall("micros")  # extrai para a pasta local
+    
+    gdf = gpd.read_file("micros/BR_Microrregioes_2022.shp").to_crs(epsg=4326)
     gdf = gdf[['CD_MICRO', 'geometry']]
     return gdf
-    
+
 df = load_data()
 gdf = load_geo()
 
