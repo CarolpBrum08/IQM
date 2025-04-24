@@ -22,34 +22,37 @@ def load_data():
 
 @st.cache_data
 def load_geo():
-    # URL direta com ?dl=1 no final
     url = "https://www.dropbox.com/scl/fi/9ykpfmts35d0ct0ufh7c6/BR_Microrregioes_2022.zip?rlkey=kjbpqi3f6aeun4ctscae02k9e&st=mer376fu&dl=1"
     
-    # Faz o download do conteúdo zipado
     response = requests.get(url)
     response.raise_for_status()
 
     with tempfile.TemporaryDirectory() as tmpdir:
         zip_path = os.path.join(tmpdir, "micros.zip")
         
-        # Salva o zip em disco
         with open(zip_path, "wb") as f:
             f.write(response.content)
         
-        # Extrai tudo
         with zipfile.ZipFile(zip_path, "r") as zip_ref:
             zip_ref.extractall(tmpdir)
+            st.write("📂 Arquivos extraídos:", zip_ref.namelist())
 
-        # Encontra o shapefile (.shp)
-        for file in os.listdir(tmpdir):
-            if file.endswith(".shp"):
-                shp_path = os.path.join(tmpdir, file)
-                break
+        # Encontra o .shp (e assume que todos os outros estão no mesmo lugar)
+        shp_path = None
+        for root, _, files in os.walk(tmpdir):
+            for file in files:
+                if file.endswith(".shp"):
+                    shp_path = os.path.join(root, file)
+                    break
+        
+        if not shp_path:
+            st.error("❌ Arquivo .shp não encontrado no zip.")
+            st.stop()
+        
+        st.write(f"📌 Caminho do SHP: `{shp_path}`")
 
-        # Lê com geopandas e ajusta o sistema de coordenadas
+        # Lê com geopandas
         gdf = gpd.read_file(shp_path).to_crs(epsg=4326)
-
-        # Mantém só o necessário
         gdf = gdf[['CD_MICRO', 'geometry']]
 
         return gdf
