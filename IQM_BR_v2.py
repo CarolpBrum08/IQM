@@ -23,15 +23,17 @@ def load_data():
 @st.cache_data
 def load_geo():
     st.info("🔄 Baixando shapefile zipado do Dropbox...")
-    
-    # 🔗 Coloque aqui o link direto (com ?dl=1)
+
     url = "https://www.dropbox.com/scl/fi/9ykpfmts35d0ct0ufh7c6/BR_Microrregioes_2022.zip?rlkey=kjbpqi3f6aeun4ctscae02k9e&st=mer376fu&dl=1"
-    
     r = requests.get(url)
     z = zipfile.ZipFile(io.BytesIO(r.content))
-    z.extractall("micros")  # extrai para a pasta local
-    
-    gdf = gpd.read_file("micros/BR_Microrregioes_2022.shp").to_crs(epsg=4326)
+    z.extractall("micros")
+
+    # Caminho correto do shapefile
+    shp_path = "micros/BR_Microrregioes_2022.shp"
+    gdf = gpd.read_file(shp_path).to_crs(epsg=4326)
+
+    # Mantém apenas o necessário
     gdf = gdf[['CD_MICRO', 'geometry']]
     return gdf
 
