@@ -34,7 +34,6 @@ def load_geo():
         with zipfile.ZipFile(zip_path, "r") as zip_ref:
             zip_ref.extractall(tmpdir)
 
-        # Encontra o .shp
         shp_path = None
         for root, _, files in os.walk(tmpdir):
             for file in files:
@@ -46,7 +45,6 @@ def load_geo():
             st.error("❌ Arquivo .shp não encontrado no zip.")
             st.stop()
 
-        # Lê com geopandas
         gdf = gpd.read_file(shp_path).to_crs(epsg=4326)
         gdf = gdf[['CD_MICRO', 'geometry']]
 
