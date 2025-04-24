@@ -1,12 +1,10 @@
-
 import streamlit as st
 import pandas as pd
 import geopandas as gpd
 import plotly.express as px
 import json
-import geobr  # agora usamos o geobr direto!
+import geobr
 
-# PRIMEIRO comando Streamlit
 st.set_page_config(layout="wide")
 
 # ======= Carga de dados =======
@@ -19,23 +17,22 @@ def load_data():
 def load_geo():
     try:
         gdf = geobr.read_micro_region(code_micro="all", year=2017, simplified=False)
-        gdf["code_micro_region"] = gdf["code_micro_region"].astype(str)
-        gdf = gdf.rename(columns={"code_micro_region": "Código da Microrregião"})
-        return gdf[["Código da Microrregião", "geometry"]]
+        gdf["CD_MICRO"] = gdf["code_micro"].astype(str)
+        return gdf[["CD_MICRO", "geometry"]]
     except Exception as e:
-        st.error("❌ Erro ao carregar os dados geográficos. Verifique se o geobr está instalado corretamente ou tente novamente.")
+        st.error("❌ Erro ao carregar os dados geográficos com geobr.")
         st.exception(e)
         st.stop()
 
-    return gdf[["Código da Microrregião", "geometry"]]
-
-# Carregar dados
 df = load_data()
 gdf = load_geo()
 
-# Merge com dados de indicadores
+# Ajustar tipos para merge
 df["Código da Microrregião"] = df["Código da Microrregião"].astype(str)
-geo_df = pd.merge(df, gdf, on="Código da Microrregião")
+gdf["CD_MICRO"] = gdf["CD_MICRO"].astype(str)
+
+# Merge para juntar geometria e indicadores
+geo_df = pd.merge(df, gdf, left_on="Código da Microrregião", right_on="CD_MICRO")
 
 # ======= Interface =======
 st.title("📊 Dashboard IQM - Microregiões do Brasil")
