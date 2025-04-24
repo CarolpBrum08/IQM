@@ -4,6 +4,11 @@ import pandas as pd
 import geopandas as gpd
 import plotly.express as px
 import json
+import zipfile
+import io
+import os
+import requests
+
 
 # PRIMEIRO comando Streamlit
 st.set_page_config(layout="wide")
@@ -16,11 +21,27 @@ def load_data():
 
 @st.cache_data
 def load_geo():
-    gdf = gpd.read_file("BR_Microrregioes_2022.shp").to_crs(epsg=4326)
-    # Mantém só o código e a geometria
+    # Link direto para download no Google Drive
+    url = "https://drive.google.com/uc?export=download&id=14TwF5uPra8XssUfwwKGiSPdJY4vkTHGT"
+
+    st.write("🔄 Baixando shapefile das microrregiões. Aguarde...")
+
+    # Faz o download
+    r = requests.get(url)
+    z = zipfile.ZipFile(io.BytesIO(r.content))
+
+    # Extrai para uma pasta temporária
+    extract_path = "shapefile_temp"
+    z.extractall(extract_path)
+
+    # Encontra o arquivo .shp
+    shp_file = [f for f in os.listdir(extract_path) if f.endswith(".shp")][0]
+    full_path = os.path.join(extract_path, shp_file)
+
+    # Carrega o GeoDataFrame
+    gdf = gpd.read_file(full_path).to_crs(epsg=4326)
     gdf = gdf[['CD_MICRO', 'geometry']]
     return gdf
-
 df = load_data()
 gdf = load_geo()
 
