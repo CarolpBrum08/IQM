@@ -2,10 +2,8 @@ streamlit
 pandas
 plotly
 openpyxl
-requests
-geopandas==0.13.2
+geopandas
+geobr
 fiona
 pyproj
 shapely
-rtree
-geobr
