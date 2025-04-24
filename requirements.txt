@@ -7,3 +7,4 @@ geobr
 fiona
 pyproj
 shapely
+matplotlib
