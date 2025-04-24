@@ -1,0 +1,8 @@
+streamlit
+pandas
+geopandas
+plotly
+openpyxl
+requests
+
+https://drive.google.com/file/d/14TwF5uPra8XssUfwwKGiSPdJY4vkTHGT/view?usp=sharing
