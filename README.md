@@ -6,7 +6,7 @@ Este aplicativo requer dois arquivos locais para funcionar corretamente:
 A planilha completa com os dados por microrregião está disponível apenas para uso interno. Você pode solicitá-la diretamente com a equipe responsável pelo IQM ou colocá-la manualmente no mesmo diretório do projeto.
 
 📍 **Nome do arquivo esperado:** `IQM_BRASIL_2025.xlsm`  
-📍 **Local:** Diretório raiz do projeto (mesmo nível do arquivo `IQM_Dashboard_v2.py`)
+📍 **Local:** Diretório raiz do projeto (mesmo nível do arquivo `IQM_BR_v2.py`)
 
 ---
 
