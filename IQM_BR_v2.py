@@ -17,12 +17,15 @@ def load_data():
 
 @st.cache_data
 def load_geo():
-    # Carrega microrregiões do Brasil diretamente do IBGE com geobr
-    gdf = geobr.read_micro_region(code_micro="all", year=2017, simplified=False)
-    
-    # Renomeia para casar com seu Excel
-    gdf["code_micro_region"] = gdf["code_micro_region"].astype(str)
-    gdf = gdf.rename(columns={"code_micro_region": "Código da Microrregião"})
+    try:
+        gdf = geobr.read_micro_region(code_micro="all", year=2017, simplified=False)
+        gdf["code_micro_region"] = gdf["code_micro_region"].astype(str)
+        gdf = gdf.rename(columns={"code_micro_region": "Código da Microrregião"})
+        return gdf[["Código da Microrregião", "geometry"]]
+    except Exception as e:
+        st.error("❌ Erro ao carregar os dados geográficos. Verifique se o geobr está instalado corretamente ou tente novamente.")
+        st.exception(e)
+        st.stop()
 
     return gdf[["Código da Microrregião", "geometry"]]
 
