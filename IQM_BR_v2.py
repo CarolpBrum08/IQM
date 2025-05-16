@@ -2,74 +2,118 @@ import streamlit as st
 import pandas as pd
 import geopandas as gpd
 import plotly.express as px
+import zipfile
+import io
+import requests
+import json
+import os
 
-# Carregamento dos dados
-df = pd.read_csv("IQM_Qualificacao.csv")
-gdf = gpd.read_file("microrregioes.shp")
+# PRIMEIRO comando Streamlit
+st.set_page_config(layout="wide")
 
-# Título
-st.title("📊 Dashboard IQM – Microrregiões do Brasil")
+# ======= Carga de dados =======
+@st.cache_data
+def load_data():
+    df = pd.read_excel("IQM_BRASIL_2025.xlsm", sheet_name="IQM_Qualificação", header=3)
+    ranking = pd.read_excel("IQM_BRASIL_2025.xlsm", sheet_name="IQM_Ranking")
+    return df, ranking
 
-# Filtros (Indicador antes do Estado)
-indicadores = ['IQM', 'DESVIO PADRÃO', 'CORREÇÃO', 'IQM FINAL']
-indicador_selecionado = st.selectbox('Selecione o Indicador:', indicadores)
+@st.cache_data
+def load_geo():
+    st.info("🔄 Baixando shapefile zipado do Dropbox...")
 
-estados = sorted(df['UF'].unique())
-estado_selecionado = st.selectbox('Selecione um Estado (UF):', estados)
+    url = "https://www.dropbox.com/scl/fi/9ykpfmts35d0ct0ufh7c6/BR_Microrregioes_2022.zip?rlkey=kjbpqi3f6aeun4ctscae02k9e&st=mer376fu&dl=1"
 
-# Filtrando dados pelo estado
-df_estado = df[df['UF'] == estado_selecionado]
-gdf_estado = gdf[gdf['CD_GEOCODM'].isin(df_estado['CD_GEOCODM'])]
+    r = requests.get(url)
+    z = zipfile.ZipFile(io.BytesIO(r.content))
+    z.extractall("micros")
 
-# Mapa do estado selecionado
-fig_estado = px.choropleth(
-    gdf_estado,
-    geojson=gdf_estado.geometry.__geo_interface__,
-    locations=gdf_estado.index,
-    color=df_estado[indicador_selecionado],
-    hover_name=df_estado['NM_MICRO'],
-    color_continuous_scale="YlGnBu",
-)
+    gdf = gpd.read_file("micros/BR_Microrregioes_2022.shp").to_crs(epsg=4326)
+    gdf = gdf[['CD_MICRO', 'geometry']]
+    return gdf
 
-fig_estado.update_geos(fitbounds="locations", visible=False)
-st.plotly_chart(fig_estado, use_container_width=True)
+# Carregando dados
+df, df_ranking = load_data()
+gdf = load_geo()
 
-# Título da seção Top 10
-st.subheader(f"🏆 Top 10 Microrregiões - Ranking {indicador_selecionado} (Brasil)")
+# Ajuste de tipos
+df["Código da Microrregião"] = df["Código da Microrregião"].astype(str)
+gdf["CD_MICRO"] = gdf["CD_MICRO"].astype(str)
 
-# Criar Top 10 nacional
-top_10_df = df.sort_values(by=indicador_selecionado, ascending=False).head(10).copy()
-top_10_df['Posição'] = range(1, 11)
-top_10_codigos = top_10_df['CD_GEOCODM']
+# Merge com geometria
+geo_df = pd.merge(df, gdf, left_on="Código da Microrregião", right_on="CD_MICRO")
 
-# Marcar cores só para Top 10 no mapa
-gdf_mapa_brasil = gdf.copy()
-gdf_mapa_brasil['COR_TOP10'] = gdf_mapa_brasil['CD_GEOCODM'].apply(
-    lambda x: df.loc[df['CD_GEOCODM'] == x, indicador_selecionado].values[0]
-    if x in top_10_codigos.values else None
-)
+# ======= Interface =======
+st.title("📊 Dashboard IQM - Microregiões do Brasil")
 
-# Mapa do Brasil com destaque Top 10
-fig_top10 = px.choropleth(
-    gdf_mapa_brasil,
-    geojson=gdf_mapa_brasil.geometry.__geo_interface__,
-    locations=gdf_mapa_brasil.index,
-    color=gdf_mapa_brasil['COR_TOP10'],
-    hover_name=gdf_mapa_brasil['NM_MICRO'],
-    color_continuous_scale="YlGnBu",
-)
+# Seleção de indicador
+indicadores = ["IQM", "Desvio Padrão", "Correção", "IQM FINAL", "Top 10 Microregiões (Ranking IQM)"]
+ind_sel = st.selectbox("Selecione o Indicador:", indicadores)
 
-fig_top10.update_geos(fitbounds="locations", visible=False)
-fig_top10.update_layout(height=600, margin={"r":0,"t":30,"l":0,"b":0})
+# Se for Top 10, mostrar mapa do Brasil com Top 10
+if ind_sel == "Top 10 Microregiões (Ranking IQM)":
+    st.subheader("🏆 Top 10 Microregiões - Ranking IQM (Brasil)")
 
-# Exibição lado a lado do mapa e da tabela
-col1, col2 = st.columns([2, 1])
+    top10 = df_ranking.head(10)
+    top10["Código da Microrregião"] = top10["Código da Microrregião"].astype(str)
+    df_top10 = geo_df[geo_df["Código da Microrregião"].isin(top10["Código da Microrregião"])]
 
-with col1:
-    st.plotly_chart(fig_top10, use_container_width=True)
+    gdf_top10 = gpd.GeoDataFrame(df_top10).set_index("Código da Microrregião")
+    geojson_top10 = json.loads(gdf_top10.to_json())
 
-with col2:
-    st.markdown("**📋 Ranking das Top 10 Microrregiões**")
-    st.dataframe(
-        top_10_df[['Posição', 'NM_MICRO', 'UF', indicador_selecionado]].reset_index(drop=True),
-        use_container_width=True)
+    fig = px.choropleth(
+        df_top10,
+        geojson=geojson_top10,
+        locations="Código da Microrregião",
+        color="IQM FINAL",
+        hover_name="Microrregião",
+        projection="mercator",
+        color_continuous_scale="YlGnBu"
+    )
+    fig.update_geos(fitbounds="locations", visible=False)
+    fig.update_layout(margin={"r":0,"t":40,"l":0,"b":0})
+    st.plotly_chart(fig, use_container_width=True)
+
+    # Ranking do Top 10
+    top10_view = df_top10[["Microrregião", "UF", "IQM FINAL"]].sort_values(by="IQM FINAL", ascending=False).reset_index(drop=True)
+    top10_view.index += 1
+    st.dataframe(top10_view.style.background_gradient(cmap="YlGnBu", subset=["IQM FINAL"]), use_container_width=True)
+
+else:
+    # Filtro por Estado
+    ufs = sorted(geo_df["UF"].unique())
+    uf_sel = st.selectbox("Selecione um Estado (UF):", ufs)
+    df_uf = geo_df[geo_df["UF"] == uf_sel]
+
+    gdf_uf = gpd.GeoDataFrame(df_uf).set_index("Código da Microrregião")
+    geojson = json.loads(gdf_uf.to_json())
+
+    st.subheader(f"{ind_sel} - Microregiões de {uf_sel}")
+    fig = px.choropleth(
+        df_uf,
+        geojson=geojson,
+        locations="Código da Microrregião",
+        color=ind_sel,
+        hover_name="Microrregião",
+        projection="mercator",
+        color_continuous_scale="YlGnBu"
+    )
+    fig.update_geos(fitbounds="locations", visible=False)
+    fig.update_layout(margin={"r":0,"t":40,"l":0,"b":0})
+    st.plotly_chart(fig, use_container_width=True)
+
+    # Ranking
+    st.subheader("🏆 Ranking por " + ind_sel)
+    rank = df_uf[["Microrregião", ind_sel]].sort_values(by=ind_sel, ascending=False).reset_index(drop=True)
+    rank.index += 1
+    st.dataframe(rank.style.background_gradient(cmap="YlGnBu", subset=[ind_sel]), use_container_width=True)
+
+    # Detalhes por Microrregião
+    micros = sorted(df_uf["Microrregião"].unique())
+    mic_sel = st.selectbox("Selecione uma Microrregião para detalhes:", micros)
+    df_micro = df_uf[df_uf["Microrregião"] == mic_sel]
+    st.write(df_micro.T.iloc[-4:])
+
+    # Tabela completa
+    with st.expander("📁 Ver tabela completa"):
+        st.dataframe(df_uf, use_container_width=True)
