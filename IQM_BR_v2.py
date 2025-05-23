@@ -2,10 +2,13 @@ import streamlit as st
 import pandas as pd
 import geopandas as gpd
 import plotly.express as px
+import zipfile
+import io
+import requests
 import json
-from geobr import read_micro_region
+import os
 
-# Configuração inicial
+# PRIMEIRO comando Streamlit
 st.set_page_config(layout="wide")
 
 # ======= Carga de dados =======
@@ -17,22 +20,26 @@ def load_data():
 
 @st.cache_data
 def load_geo():
-    st.info("🔄 Carregando microrregiões com geobr...")
-    gdf = read_micro_region(year=2017).to_crs(epsg=4326)
-    gdf = gdf[['code_micro', 'name_micro', 'abbrev_state', 'geometry']]
-    gdf.columns = ['CD_MICRO', 'Microrregião', 'UF', 'geometry']
-    gdf["CD_MICRO"] = gdf["CD_MICRO"].astype(str)
-    return gdf
-    except Exception as e:
-    st.error("Erro ao carregar microrregiões com o pacote geobr. Verifique se o serviço está online ou se o ano escolhido é válido.")
-    st.stop()
+    st.info("🔄 Baixando shapefile zipado do Dropbox...")
 
-# Carregamento dos dados
+    url = "https://www.dropbox.com/scl/fi/9ykpfmts35d0ct0ufh7c6/BR_Microrregioes_2022.zip?rlkey=kjbpqi3f6aeun4ctscae02k9e&st=mer376fu&dl=1"
+
+    r = requests.get(url)
+    z = zipfile.ZipFile(io.BytesIO(r.content))
+    z.extractall("micros")
+
+    gdf = gpd.read_file("micros/BR_Microrregioes_2022.shp").to_crs(epsg=4326)
+    gdf = gdf[['CD_MICRO', 'geometry']]
+    return gdf
+
 df, df_ranking = load_data()
 gdf = load_geo()
 
-# Preparar dados
+# Ajustar tipos para merge
 df["Código da Microrregião"] = df["Código da Microrregião"].astype(str)
+gdf["CD_MICRO"] = gdf["CD_MICRO"].astype(str)
+
+# Merge para juntar geometria e indicadores
 geo_df = pd.merge(df, gdf, left_on="Código da Microrregião", right_on="CD_MICRO")
 
 # ======= Interface =======
