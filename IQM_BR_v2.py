@@ -3,6 +3,7 @@ import pandas as pd
 import geopandas as gpd
 import plotly.express as px
 import zipfile
+import io
 import json
 import os
 
@@ -18,14 +19,14 @@ def load_data():
 
 @st.cache_data
 def load_geo():
-    st.info("🔄 Carregando shapefile zipado localmente...")
+    st.info("🔄 Carregando shapefile local...")
 
-    if not os.path.exists("micros"):
-        with zipfile.ZipFile("geojson.zip", "r") as z:
-            z.extractall("micros")
+    with zipfile.ZipFile("geojson.zip", "r") as zip_ref:
+        zip_ref.extractall("micros")
 
     gdf = gpd.read_file("micros/BR_Microrregioes_2022.shp").to_crs(epsg=4326)
     gdf = gdf[['CD_MICRO', 'geometry']]
+    gdf["CD_MICRO"] = gdf["CD_MICRO"].astype(str)
     return gdf
 
 df, df_ranking = load_data()
@@ -33,7 +34,6 @@ gdf = load_geo()
 
 # Ajustar tipos para merge
 df["Código da Microrregião"] = df["Código da Microrregião"].astype(str)
-gdf["CD_MICRO"] = gdf["CD_MICRO"].astype(str)
 
 # Merge para juntar geometria e indicadores
 geo_df = pd.merge(df, gdf, left_on="Código da Microrregião", right_on="CD_MICRO")
