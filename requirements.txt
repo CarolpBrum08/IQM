@@ -16,3 +16,4 @@ plotly>=5.19.0
 openpyxl>=3.1.2
 xlrd>=2.0.1
 requests>=2.31.0
+geobr>=0.2.0
