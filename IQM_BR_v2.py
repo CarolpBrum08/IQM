@@ -18,7 +18,7 @@ def load_data():
 @st.cache_data
 def load_geo():
     st.info("🔄 Carregando microrregiões com geobr...")
-    gdf = read_micro_region(year=2021).to_crs(epsg=4326)
+    gdf = read_micro_region(year=2020).to_crs(epsg=4326)
     gdf = gdf[['code_micro', 'name_micro', 'abbrev_state', 'geometry']]
     gdf.columns = ['CD_MICRO', 'Microrregião', 'UF', 'geometry']
     gdf["CD_MICRO"] = gdf["CD_MICRO"].astype(str)
