@@ -18,11 +18,14 @@ def load_data():
 @st.cache_data
 def load_geo():
     st.info("🔄 Carregando microrregiões com geobr...")
-    gdf = read_micro_region(year=2020).to_crs(epsg=4326)
+    gdf = read_micro_region(year=2017).to_crs(epsg=4326)
     gdf = gdf[['code_micro', 'name_micro', 'abbrev_state', 'geometry']]
     gdf.columns = ['CD_MICRO', 'Microrregião', 'UF', 'geometry']
     gdf["CD_MICRO"] = gdf["CD_MICRO"].astype(str)
     return gdf
+    except Exception as e:
+    st.error("Erro ao carregar microrregiões com o pacote geobr. Verifique se o serviço está online ou se o ano escolhido é válido.")
+    st.stop()
 
 # Carregamento dos dados
 df, df_ranking = load_data()
