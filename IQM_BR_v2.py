@@ -3,8 +3,6 @@ import pandas as pd
 import geopandas as gpd
 import plotly.express as px
 import zipfile
-import io
-import requests
 import json
 import os
 
@@ -20,13 +18,11 @@ def load_data():
 
 @st.cache_data
 def load_geo():
-    st.info("🔄 Baixando shapefile zipado do Dropbox...")
+    st.info("🔄 Carregando shapefile zipado localmente...")
 
-    url = "https://www.dropbox.com/scl/fi/9ykpfmts35d0ct0ufh7c6/BR_Microrregioes_2022.zip?rlkey=kjbpqi3f6aeun4ctscae02k9e&st=mer376fu&dl=1"
-
-    r = requests.get(url)
-    z = zipfile.ZipFile(io.BytesIO(r.content))
-    z.extractall("micros")
+    if not os.path.exists("micros"):
+        with zipfile.ZipFile("geojson.zip", "r") as z:
+            z.extractall("micros")
 
     gdf = gpd.read_file("micros/BR_Microrregioes_2022.shp").to_crs(epsg=4326)
     gdf = gdf[['CD_MICRO', 'geometry']]
