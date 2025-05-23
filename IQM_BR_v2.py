@@ -2,13 +2,10 @@ import streamlit as st
 import pandas as pd
 import geopandas as gpd
 import plotly.express as px
-import zipfile
-import io
-import requests
 import json
-from geobr import read_state
+from geobr import read_micro_region
 
-# PRIMEIRO comando Streamlit
+# Configuração inicial
 st.set_page_config(layout="wide")
 
 # ======= Carga de dados =======
@@ -20,31 +17,19 @@ def load_data():
 
 @st.cache_data
 def load_geo():
-    st.info("🔄 Baixando shapefile zipado das Microrregiões...")
-    url = "https://www.dropbox.com/scl/fi/9ykpfmts35d0ct0ufh7c6/BR_Microrregioes_2022.zip?rlkey=kjbpqi3f6aeun4ctscae02k9e&st=mer376fu&dl=1"
-    r = requests.get(url)
-    z = zipfile.ZipFile(io.BytesIO(r.content))
-    z.extractall("micros")
-    gdf = gpd.read_file("micros/BR_Microrregioes_2022.shp").to_crs(epsg=4326)
-    gdf = gdf[['CD_MICRO', 'geometry']]
+    st.info("🔄 Carregando microrregiões com geobr...")
+    gdf = read_micro_region(year=2021).to_crs(epsg=4326)
+    gdf = gdf[['code_micro', 'name_micro', 'abbrev_state', 'geometry']]
+    gdf.columns = ['CD_MICRO', 'Microrregião', 'UF', 'geometry']
+    gdf["CD_MICRO"] = gdf["CD_MICRO"].astype(str)
     return gdf
 
-@st.cache_data
-def load_ufs():
-    st.info("🔄 Baixando limites das UFs com geobr...")
-    gdf_ufs = read_state(year=2020).to_crs(epsg=4326)
-    return gdf_ufs
-
-# Carregamento
+# Carregamento dos dados
 df, df_ranking = load_data()
 gdf = load_geo()
-gdf_ufs = load_ufs()
 
-# Ajustar tipos para merge
+# Preparar dados
 df["Código da Microrregião"] = df["Código da Microrregião"].astype(str)
-gdf["CD_MICRO"] = gdf["CD_MICRO"].astype(str)
-
-# Merge para juntar geometria e indicadores
 geo_df = pd.merge(df, gdf, left_on="Código da Microrregião", right_on="CD_MICRO")
 
 # ======= Interface =======
@@ -54,7 +39,6 @@ st.title("📊 Dashboard IQM - Microregiões do Brasil")
 ufs = sorted(geo_df["UF"].unique())
 uf_sel = st.selectbox("Selecione um Estado (UF):", ufs)
 df_uf = geo_df[geo_df["UF"] == uf_sel]
-gdf_uf_border = gdf_ufs[gdf_ufs["abbrev_state"] == uf_sel]
 
 # Seleção de indicador
 indicadores = ["IQM", "Desvio Padrão", "Correção", "IQM FINAL", "Top 10 Microregiões (Ranking IQM)"]
@@ -64,7 +48,6 @@ ind_sel = st.selectbox("Selecione o Indicador:", indicadores)
 if ind_sel != "Top 10 Microregiões (Ranking IQM)":
     gdf_uf = gpd.GeoDataFrame(df_uf).set_index("Código da Microrregião")
     geojson = json.loads(gdf_uf.to_json())
-    geojson_uf = json.loads(gdf_uf_border.to_json())
 
     st.subheader(f"{ind_sel} - Microregiões de {uf_sel}")
     fig = px.choropleth(
@@ -78,17 +61,6 @@ if ind_sel != "Top 10 Microregiões (Ranking IQM)":
     )
     fig.update_geos(fitbounds="locations", visible=False)
     fig.update_layout(margin={"r":0,"t":40,"l":0,"b":0})
-
-    # Adiciona a borda da UF como camada
-    fig.update_traces(marker_line_width=0.5)
-    fig.add_trace(
-        px.choropleth(
-            gdf_uf_border,
-            geojson=geojson_uf,
-            locations=gdf_uf_border.index,
-            color_discrete_sequence=["black"]
-        ).data[0]
-    )
     st.plotly_chart(fig, use_container_width=True)
 
     # Ranking normal
